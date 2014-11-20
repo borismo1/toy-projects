@@ -1,0 +1,155 @@
+---
+title: "Politics and Happiness"
+date: 
+output:
+  html_document:
+    theme: cerulean
+---
+
+```{r echo=FALSE}
+load(url("http://bit.ly/dasi_anes_data"))
+```
+
+### Introduction:
+The Question: "Are people who don't pay attention to politics consider themselves happier than people who pay close attention to politics?"
+
+I'm curious because i myself don't pay any attention to politics and consider myself happier than all my family and friends who play close attention to the local or global politics arena and constantly feel depressed over the "latest developments"(independently of there political views). 
+
+So its the perfect chance to put my theory to test.
+
+maybe the secret for happier life is political ignorance? 
+and who wouldn't desire a happier life for them-self?
+
+Formal interpretation of the question : is the ratio of people who consider them self {"Extremely satisfied","Very satisfied","Moderetly satisfied"} higher if the participant "Never" pays attention to politics compered to participants who "Always" pay attention to politics
+
+### Data:
+
+the data were collected by face to face interviews of the respondents during the two mount preceding 2012 November elections each case represent a respondent .
+for selected question i will use "interest_attention" and "happ_lifesatisf" as variables of interest.
+
+"interest_attention" - How often does the respondent pay attention to politics and elections. Discrete Variable with 5 levels represented by column 11 in our data set.
+
+"happ_lifesatisf" - How satisfied is the respondent with life, Discrete Variable with 5 levels represented by column 120 in our data-set.
+
+```{r}
+names(anes)[c(11,120)]
+```
+
+We will conduct observational study using the given data set, no new data collection is conducted so the study its strictly observational .The conclusions will be generalizable to the US population of voting age (18 and above) since the sample was limited to this subset of the total population .
+Hopefully the study will yield a correlation link between the two variables described above, obviously casual link are out of question since confounding variables likely involved.
+
+### Exploratory data analysis:
+
+#####I will start by describing the manipulation i've made to the data to make it "friendlier" for our purpos
+
+1)subseting the data only to the "cases" with variable "interest_attention" equals "Always" or "Never" (our groups of interest) and removing cases with NA's
+
+```{r}
+anes_subset <- anes[anes$interest_attention == "Always" | anes$interest_attention == "Never",c(120,11)]
+anes_subset <- na.omit(anes_subset)
+anes_subset$interest_attention <- factor(anes_subset$interest_attention)
+```
+
+now lets preview the result as proportional bar-plots
+
+```{r}
+barplot(prop.table(table(anes_subset),margin = 2), legend.text = TRUE, asp=3, args.legend = list(x = "topright", bty = "n"))
+```
+
+
+2) i reduced the levels of the variable "happ_lifesatisf" from 5 to 2 . now all the cases with varible "happ_lifesatisf" equals "Extremely satisfied","Very satisfied","Moderetly satisfied" will be considered as "success" and "failure" otherwise for 
+simplicity i will call the new levels {"happy","sad"}
+
+```{r}
+levels(anes_subset$happ_lifesatisf)[levels(anes_subset$happ_lifesatisf) == "Extremely Satisfied"] <- "Happy"
+levels(anes_subset$happ_lifesatisf)[levels(anes_subset$happ_lifesatisf) == "Very Satisfied"] <- "Happy"
+levels(anes_subset$happ_lifesatisf)[levels(anes_subset$happ_lifesatisf) == "Moderately Satisfied"] <- "Happy"
+levels(anes_subset$happ_lifesatisf)[levels(anes_subset$happ_lifesatisf) == "Slightly Satisfied"] <- "Sad"
+levels(anes_subset$happ_lifesatisf)[levels(anes_subset$happ_lifesatisf) ==  "Not Satisfied At All Satisfied"] <- "Sad"
+```
+
+preview of the result
+
+```{r}
+barplot(prop.table(table(anes_subset),margin = 2), col = c("green","red"),legend =c("Happy", "Sad"), asp=1.9,args.legend = list(x = "topright", bty = "n"))
+```
+
+at this point we can already guess that my theory is probably false . moreover according to "my" definition of Happy and Sad we can see that the proportion of "Happy" people is higher among people who Pay close attention to politics .
+
+now lets compute the exact percentages of "Happy" responses in the sample and in two selected  subgroup .
+
+```{r}
+
+p_sample <- dim(anes_subset[anes_subset$happ_lifesatisf == "Happy",])[1]/dim(anes_subset)[1]
+
+p_sample
+
+p_alwaise <- dim(anes_subset[anes_subset$happ_lifesatisf == "Happy" & anes_subset$interest_attention == "Always",])[1] /dim(anes_subset[anes_subset$interest_attention == "Always",])[1]
+
+p_alwaise
+
+p_never <- dim(anes_subset[anes_subset$happ_lifesatisf == "Happy" & anes_subset$interest_attention == "Never",])[1] /dim(anes_subset[anes_subset$interest_attention == "Never",])[1]
+
+p_never
+```
+so our point estimate $\hat{p} = 0.8251928$
+
+no lets calculate Standard error of the population 
+$SE_{\hat{p}} = \sqrt{\frac{\hat{p}(1-\hat{p})}{n}} = \sqrt{\frac{0.8251928 \cdot (1 - 0.8251928)}{1167}} = 0.01112$
+
+since we are interested in proportions we will use methods Confidence interval and hypotheses test for proportion .
+the test statistic will be calculated and disused in the Inference chapter .
+
+### Inference:
+
+since we already know that people who don't pay attention to politics are less likely to be happy according to our data i will change the alternative hypotheses to "People who never pay attention to politics are less likely to be happy"
+
+null hypotheses:the happiness levels of people who don't pay attention to politics are exactly the same for everyone . 
+
+alternative hypotheses:happiness levels of people who don't pay attention to politics are lower then the population in general
+
+
+lets start by finding $95\%$ Confidence interval.
+$CI= \hat{p} \pm z^* SE_{\hat{p}}$
+$CI = 0.8251928 \pm 1.96 \cdot 0.01112$
+$CI = 0.8251928 \pm 0.0217952$
+$CI = (0.8033976,0.846988)$
+
+now lets find the p value . 
+
+first step lets check CLT conditions .
+independence - yep (participants were chosen independently of each-other)
+
+sample size - yes more than 10 "Happy" and more than 10 "Sad"
+
+next step standard error
+$SE = \sqrt{\frac{p(1-p)}{n}} = \sqrt{\frac{0.7931034(1-0.7931034)}{1167}} = 0.0118578$
+
+test statistic
+$Z = \frac{\hat{p} - p}{SE} = \frac{0.8251928 - 0.7931034}{0.0118578} = 2.706185$
+
+```{r}
+pnorm(2.706185,mean = 0.8251928 , lower.tail = FALSE)
+```
+
+it looks like we will be able to reject the null hypotheses since $0.02998649 < 0.05$
+
+### Conclusion:
+
+looks like we will be able to confirm the alternative hypotheses that people who are not paying attention to politics a actually consider them self less happy then people who always pay close attention to politics (the exact opposite of my prediction).
+
+so my theory was disproved by this study ??
+NO ! since i leave outside of US the conclusion can't be generalized to my case . (i was lucky this time )
+
+and the real lesson here is that any study is EXTRIMLY dependent of the statistician interpretation of data as we can see from the first proportional bar-plot if we defined the happiness levels otherwise we would be able to get different result 
+
+for example: if I define only the "Extremely Satisfied" as "Happy" and all others as "Sad" we would be able to prove that my original theory was right(since the proportion of happy people will be higher in the group of people who "Never" pay attention to politics). 
+
+### DATA SET codebook and url 
+
+data-set URL: http://bit.ly/dasi_anes_data
+
+code-book URL: https://d396qusza40orc.cloudfront.net/statistics%2Fproject%2Fanes1.html
+
+
+
