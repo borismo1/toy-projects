@@ -1,0 +1,124 @@
+---
+title: "Домашнее задание по Эконометрике"
+output: html_document
+lang: russian
+---
+
+
+
+
+###шаг первый: Загрузка данных из файла и Активация пакетов.
+```{r, message=FALSE, warning=FALSE}
+library("checkpoint")
+checkpoint("2015-04-22")
+library("haven")
+library("dplyr")
+library("pander")
+library("memisc")
+library("psych")
+library("ggplot2")
+library("lmtest")
+library("plm")
+data <- read_sav("r22i_os25a.sav")
+relevant_data <- data[,c("rj13.2","rh6","rh5","r_diplom","rj6.2","rm1","rm2")]
+```
+
+переменные, которые я выбрал: Индекс массы тела (BMI) и Среднее число еженедельных рабочих часов (rj6.2) . 
+
+Индекс массы тела я рассчитал используя вес и рост (rm1 , rm2) используя формулу    $BMI = \frac{вес}{рост^2}$
+
+Я выбрал эти переменные, так как считают, что они связаны с заработной платы среднего человека.
+
+**Индекс массы тела**
+
+* наивный прогноз: Люди, которые в хорошей физической форме, более продуктивны.
+* реалистичный прогноз: Люди с более высокой заработной платой могут позволить себе лучшую еду в больших количествах.
+
+думаю, что мы получим положительную корреляцию между заработной платой и Индексом массы тела 
+
+**Среднее число еженедельных рабочих часов**
+
+* наивный прогноз: Люди, которые работают больше часов в неделю зарабатывать больше .
+* реалистичный прогноз: Люди, которые получают большие зарплаты менее мотивированы работать сверхурочно
+
+думаю, что мы получим отрицательную корреляцию между заработной платой и числом еженедельных рабочих часов
+
+###шаг второй: Очистка и обработка данных.
+```{r, message=FALSE, warning=FALSE}
+ves <- relevant_data$rm1
+rost <- relevant_data$rm2 / 100
+relevant_data <- mutate(relevant_data , bmi = ves / rost^2 )
+relevant_data <- relevant_data[,-c(6,7)]
+
+
+
+relevant_data <- relevant_data[relevant_data$bmi > 5 & relevant_data$bmi < 100 &  relevant_data$rj13.2 > 0 & relevant_data$rj6.2 < 168, ]
+remove <- c(99999997,99999998,99999999)
+relevant_data <- relevant_data[!relevant_data$rj13.2 %in% remove & !relevant_data$r_diplom %in% remove ,]
+relevant_data$r_diplom <- factor(relevant_data$r_diplom)
+levels(relevant_data$r_diplom) <- c(1,1,1,2,3,4)
+
+
+relevant_data$rh5 <- factor(relevant_data$rh5)
+levels(relevant_data$rh5) <- c("Male","Female")
+relevant_data$rh6 <- 2013 -  relevant_data$rh6
+
+
+
+colnames(relevant_data) <- c("Wages","Age","Sex","Education","Weekly_Working_Hours","BMI")
+relevant_data$No_Education <- as.integer(relevant_data$Education == 1)
+relevant_data$No_Education <- as.factor(relevant_data$No_Education)
+relevant_data$Basic_education <- as.integer(relevant_data$Education == 2)
+relevant_data$Basic_education <- as.factor(relevant_data$Basic_education)
+relevant_data$Professional_education <- as.integer(relevant_data$Education == 3)
+relevant_data$Professional_education <- as.factor(relevant_data$Professional_education)
+relevant_data$Higher_education <- as.integer(relevant_data$Education == 4)
+relevant_data$Higher_education <- as.factor(relevant_data$Higher_education)
+```
+
+###шаг третий:Таблица
+```{r, message=FALSE, warning=FALSE,results='asis',}
+temp1 <- describe(relevant_data)[,4]
+temp1 <-round(temp1 ,digits = 3)
+temp1[1] <- paste("s.d.:",temp1[1],sep = "")
+temp2 <- rbind(summary(relevant_data),temp1)
+row.names(temp2) <- NULL
+pandoc.table(temp2, split.table = Inf)
+```
+*$\ast$ оригинальная переменныя Education из которой мы получили 4 фиктивных переменных была оставлина нарочно*
+
+
+
+
+###шаг четвертый: Гистограммы дохода и возраста
+```{r, message=FALSE, warning=FALSE,results='asis',}
+
+hist(relevant_data$Wages,main = "Wages Histogram" , xlab = "Wages")
+
+hist(relevant_data$Age , main = "Age Histogram" , xlab = "Age")
+```
+
+
+###шаг пятый: простая линейная регрессия 
+```{r, message=FALSE, warning=FALSE,results='asis',}
+model1 <- lm(data = relevant_data,Wages~Age+Sex+Basic_education+Professional_education+Higher_education+BMI+Weekly_Working_Hours)
+pandoc.table(coeftest(model1),split.table = Inf)
+```
+
+Индекс массы тела и Среднее число еженедельных рабочих часов оказались **значимыми** на 5% уровне значимости.
+мой прогноз о влияние Среднего числа еженедельных рабочих часов оказался **ошибочным** (корреляция положительная)
+
+**все переменные значимыми на 5% уровне значимости**
+
+###шаг шестой: линейная регрессия с робастными ошибками
+```{r, message=FALSE, warning=FALSE,results='asis',}
+pandoc.table(coeftest(model1,vcov. = vcovHC(model1)),split.table = Inf)
+
+```
+никаких изменений в значимости переменных на 5% уровне значимости
+
+**все переменные значимыми на 5% уровне значимости**
+
+
+
+P.S. извините заранее за орфографические ошибоки. (я покинул Россию 20 лет назад)
